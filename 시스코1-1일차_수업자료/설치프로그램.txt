@@ -1,0 +1,17 @@
+탐색기
+ftp://192.168.3.101
+
+1. Packet Tracer  => 네트워크 시뮬레이터
+www.netacad.com
+sunnykid7@gmail.com / P@ssw0rd
+
+2. Wireshark  => 패킷 분석 프로그램
+www.wireshark.org
+
+3. GNS3 => 네트워크 에뮬레이터 : 장비 OS필요
+www.gns3.com
+
+4. MobaXterm => 터미널 프로그램
+mobaxterm.mobatek.net/
+
+
