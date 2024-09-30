@@ -1,0 +1,267 @@
+- Supernetting  : 네트워크를 합쳐서 하나의 네트워크로 만드는 것.
+                       라우팅 정보를 줄이기 위해서 사용됨.
+
+
+  > 슈퍼네팅을 하는 방법 :  네트워크비트를 호스트비트로 바꿈.  1비트 바꿀때마다 2^n으로 합쳐짐
+
+     172.16.0.0/24      =>  172.16.0.0/23       
+     172.16.1.0/24    
+
+     위 두개의 네트워크를 하나의 네트워크로 슈퍼네팅하기.
+
+     0000 000 0 .  0000 0000     172.16.0.0     
+
+     0000 000 1 .  1111 1111     172.16.1.255    172.16.0.0/23
+
+     1111 111 0   
+
+
+     172.16.128.0/24
+     172.16.129.0/24
+     172.16.130.0/24
+     172.16.131.0/24 
+
+              1000 00 00 . 0000 0000   172.16.128.0/22
+              1000 00 01 
+              1000 00 10
+              1000 00 11 . 1111 1111   172.16.131.255 
+
+              1111 11 00
+
+
+- CIDR(Classless Inter Domain Routing) : 라우팅정보를 취급할 때
+   클래스 개념을 없애고,  Prefix 방식으로 네트워크를 표시하여 클래스네트워크도     슈퍼네팅이 가능하도록 한 것.
+
+   기존 클래스개념을 사용했을 경우는 클래스네트워크 경계까지만 슈퍼네팅 가능.
+   따라서 클래스 네트워크는 슈퍼네팅이 불가능했음.
+
+   192.168.0.0/24  => 192.168.0.0/23
+   192.168.1.0/24 
+
+
+- VLSM(Variable Length Subnet Mask) : 서브네팅은 동일한 크기의 서브넷으로 나뉨.
+                                               크기가 다른 네트워크가 필요할 경우 서브네팅으로는
+                                              효율적으로 나눌 수 없음. 이 때 한번 나눈 서브넷을 
+                                              다시 서브네팅할 수 있는 것.
+                                     
+
+============================================================================
+- Cisco IOS 명령
+>> 라우터의 경우 최초 부팅시 Dialog 모드진입 여부에서 n을 선택함.
+
+Router>, Switch>   => 최초 사용자모드
+enable  : 관리자모드(privileged 모드) 진입
+configure terminal : 전역 설정모드 진입. 모든 설정은 설정모드에서만 가능.(시간 설정 등 일부 제외)
+interface fastethernet 0/0 (인터페이스종류 슬롯번호/인터페이스번호)
+ip address x.x.x.x  x.x.x.x  : IP주소 입력
+no shutdown  : 인터페이스 활성화(라우터는 기본값이 비활성화)
+exit : 전단계로 이동
+end : privileged 모드로 이동
+hostname 호스트명
+------------------------------
+- 현재 설정 확인하는 명령
+show running-config       : 현재 메모리상의 설정내용 출력
+show startup-config       :  현재 저장 메모리상의 설정내용 출력
+show ip interface brief    :  인터페이스의 IP주소 확인
+show interface status      :  스위치 인터페이스 상태 확인
+show mac addres-table   : mac address-table 확인
+show spanning-tree       : spanning-tree 정보 확인
+show vlan                   : vlan 정보 확인
+show interface trunk      : 인터페이스 trunk 정보 확인
+show ip route              :  라우팅테이블 확인
+--------------------------
+- L2 스위치에 IP주소 부여하기(L2스위치는 포트에 IP주소 부여 안됨.)
+interface vlan 1    => SVI(스위치의 가상 L3 인터페이스). 같은 VLAN에서 접근 가능
+ip address x.x.x.x x.x.x.x
+no sh
+
+-------------------------
+- 원격에서 스위치 또는 라우터를 제어하기 위한 설정
+1) 텔넷 설정
+enable password cisco
+line vty 0 4
+password cisco
+login
+
+2) ssh 설정
+enable password cisco
+ip domain-name koreait.com
+crypto key generate rsa general-keys modulus 1024
+username admin password cisco
+line vty 0 4
+login local
+
+---------------------------------------
+- 콘솔 작업시 일정시간 입력이 없어서 로그아웃되지 않게 설정
+line console 0
+exec-timeout 0 0
+
+- 콘솔 작업시 메시지가 팝업될 때 엔터를 입력한 효과
+line console 0
+logging synchronous
+
+
+
+
+===============================================================
+< 스위칭(Switching) >
+
+- L2 장비인 스위치에 프레임이 수신됐을 때 L2헤더의 목적지 MAC주소를 확인하고 해당 포트로
+  프레임을 전송하는 것을 스위칭이라고 함.
+
+- L2 스위치에 프레임이 수신됐을 때 동작과정(트랜스페런트 브리징 : transparent bridging)
+
+  1) 수신된 프레임의 출발지 MAC주소를 학습하여 mac address-table에 저장.(주소학습 : Learning)
+  2) 목적지 MAC주소를 확인하고 
+     > 목적지 MAC주소가 mac address-table에 없거나, 브로드캐스트 주소일 경우
+        수신된 포트 이외의 모든 포트로 프레임을 전송함.(플러딩 : flooding)
+
+     > 목적지 MAC주소가 mac address-table에 있는 경우 해당 포트로만 전송함.(포워딩 : forwarding)
+     > 포워딩시 다른 포트로 전송되는 걸 차단함.(필터링 : filtering) 즉 목적지 MAC주소가 연결된
+        포트로만 프레임을 전송하게 됨.
+  
+- L2 스위치의 3가지 주요 기능 :  주소학습(출발지MAC주소)
+                                            포워딩(필터링)
+                                            루프방지(STP)- 브로드캐스트 스톰
+
+-----------------------------------------------------------------------------------------------------------
+< Spanning Tree Protocol >
+이중화된 스위치 네트워크에서 루프를 방지하기 위해 사용되는 프로토콜
+
+- BPDU(Bridge Protocol Data Unit) : 스위치가 주고받는 메시지
+  BID(Bridge ID) = 우선순위(16비트)  +  MAC주소(48비트)
+  Path Cost = 대역폭에 따라 정해진 값(100M : 19 , 1G : 4, 10G : 2 )
+  PortID = 우선순위(8비트) +  포트번호
+                 기본값 128
+
+- BID  =  우선순위( 0~ 65535 )  + 스위치 MAC주소
+                기본값 32768
+            우선순위(4비트) + VLANID(12비트)    => VLAN별로 STP를 동작시키기 위해 사용됨.
+
+
+- STP가 동작하는 과정 : 스위치가 동작하기 시작하면 모든 포트로 BPDU를 전송함.
+
+  1. Root Bridge 결정  :  BID가 가장 낮은 스위치로 결정됨. 
+  2. Root Port 결정 : 루트 브리지 이외의 모든 스위치에 있음.
+                           스위치마다 Root Port는 한 개가 있음. 
+                           1) Root Port는 Root Bridge까지의 Path Cost가 가장 낮은 포트.
+                           2) Path Cost가 동일한 경우 Sender BID가 더 낮은 포트가 Root Port가 됨.
+                           3) Sender BID가 동일한 경우 Sender Port ID가 더 낮은 포트가 Root Port가 됨.
+  3. Designated Port 결정 : 링크마다 DP를 선택함.
+                                   스위치마다 1개 이상의 DP가 존재함.
+                                   DP는 스위치로 프레임이 수신되는 포트
+                                   Root Bridge의 모든 포트는 DP임.
+                           1) DP는 Root Bridge까지의 Path Cost가 가장 낮은 포트.
+                           2) Path Cost가 동일한 경우 자신의 BID가 더 낮은 포트가 DP가 됨.
+                           3) 자신의 BID가 동일한 경우는 PortID가 더 낮은 포트가 DP가 됨.
+  4. DP까지 결정되고 나면 RP,DP가 아닌 모든 포트는 Blocking 상태가 됨. Blocking 상태에서는
+     프레임을 송수신할 수 없음.  즉, 루프가 없는 스위치 네트워크가 됨.
+              
+
+- Root Bridge는 트래픽이 가장 많이 통과하는 스위치이므로 스위치 네트워크에서 특정 스위치가
+  Root Bridge가 될 필요가 있음.  스위치를 설정하지 않고 연결했을 경우 원하는 스위치가
+  Root Bridge가 되지 않을 수 있음.  따라서 원하는 스위치가 Root Bridge가 되도록 설정할 
+  필요가 있음.
+
+  1. 매크로 이용하는 방법
+     enable     
+     conf t
+     spanning-tree vlan 1 root primary   => 해당 스위치를 RB로 설정
+                                       secondary  => 해당 스위치를 RB의 백업으로 설정
+
+  2. 우선순위를 변경하는 방법
+     enable
+     conf t
+     spanning-tree vlan 1 priority  우선순위(0 ~ 61440: 4096단위)
+                                            => 현재 스위치 네트워크의 다른 스위치 우선순위보다 낮게 설정
+ 
+--------------------------------------------------------------------------------------------------------------
+- STP의 포트 상태
+  disabled  - 비활성화(shutdown) 상태  
+  blocking  - RP,DP결정과정이 끝나서 RP,DP가 아닌 모든 포트의 상태. 프레임 송수신 불가.
+  listening  - BPDU를 청취하는 상태. 15초간(forward delay) 같은 BPDU가 들어오면 learning으로 상태 변경
+  learning  - 프레임의 MAC주소를 학습하는 상태. 15초간(forward delay) 같은 BPDU수신시 forwarding으로 변경
+  forwarding - 프레임을 송수신할 수 있는 상태.
+
+  스위치 네트워크가 수렴(변화가 모두 반영된 상태)된 후에는 forwarding, blocking 두 가지 상태가 존재함.
+
+- STP의 포트 역할
+  Root           : 프레임을 Root Bridge로 전송할 때 사용됨.
+  Designated  :  스위치로 프레임을 수신해서 RP로 전송할 때 사용됨.
+  Alternate     :  Blocking 상태의 포트 역할
+
+- 스위치의 Spanning Tree 정보 확인  
+Switch#sh spanning-tree
+VLAN0001
+  Spanning tree enabled protocol ieee
+  Root ID    Priority    32769                                          => Root Bridge정보
+             Address     0001.C7D9.DCD3
+             This bridge is the root
+             Hello Time  2 sec  Max Age 20 sec  Forward Delay 15 sec
+
+  Bridge ID  Priority    32769  (priority 32768 sys-id-ext 1)      => 자신의 정보
+             Address     0001.C7D9.DCD3
+             Hello Time  2 sec  Max Age 20 sec  Forward Delay 15 sec
+             Aging Time  20
+
+Interface        Role   Sts  Cost      Prio.Nbr Type
+---------------- ---- --- --------- -------- --------------------------------
+Fa0/1            Desg FWD 19        128.1    P2p
+Fa0/2            Desg FWD 19        128.2    P2p
+
+-----------------------------------------------------------------------------------------------------------------------------------
+- STP의 단점 : 수렴시간(convergence time)이 길다.
+                  타이머(Hello Time, Forward delay,  Max Age 등)를 사용하기 때문에 약 30~50초 가량 수렴시간이 소요됨.
+
+- STP의 단점을 보완한 프로토콜 : RSTP(Rapid STP)
+  RSTP는 타이머를 사용하지 않고 메시지(Proposal, Agreement)를 이용하여 빠르게 수렴됨.
+
+- RSTP 설정 : 모든 스위치에 설정
+
+  en
+  conf t
+  spanning-tree mode rapid-pvst
+
+- 포트패스트(Portfast) : 단말(End Device)이 연결되는 포트는 STP동작을 할 필요가 없음. 
+                              따라서 단말이 연결되는 포트에 portfast를 설정해서 연결 즉시 forwarding 상태로 전환시킴.
+                              STP(30초), RSTP(6초)의 지연시간을 제거하고 즉시 forwarding상태로 전환.
+
+  설정 :   en
+            conf t
+            int f0/1
+            spanning-tree portfast 
+
+
+실습명령)
+R1)
+en
+conf t
+int g0/0
+ip add 192.168.1.254 255.255.255.0
+no sh
+
+PC0)
+192.168.1.10/24
+
+PC1)
+192.168.1.20/24
+
+- primary Root Bridge(DSW1), sec Root Bridge(DSW2) 변경
+ 
+DSW1)
+en
+conf t
+spanning-tree vlan 1 root primary
+spanning-tree vlan 1 priority 24576
+DSW2)
+
+en
+conf t
+spanning-tree vlan 1 root secondary
+spanning-tree vlan 1 priority 32768
+
+ASW1)
+en
+conf t
+spanning-tree vlan 1 root primary
+
