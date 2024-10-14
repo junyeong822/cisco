@@ -1,0 +1,155 @@
+- RIPv1 설정
+
+R1)
+conf t
+router rip
+network 172.16.0.0
+network 1.0.0.0
+
+
+R2)
+conf t
+router rip
+network 192.168.3.0
+network 1.0.0.0
+
+- RIPv2  설정
+
+R1)
+router rip
+version 2
+no auto-summary
+
+R2)
+router rip
+version 2
+no auto-summary
+
+=========================================
+- RIPv2 설정(GNS3)
+
+R1)
+conf t
+router rip
+version 2
+network 192.168.10.0
+network 2.0.0.0
+no auto-summary
+
+R2)
+conf t
+router rip
+version 2
+network 2.0.0.0
+network 172.16.0.0
+no auto-summary
+
+R3)
+conf t
+router rip
+version 2
+network 192.168.20.0
+network 2.0.0.0
+no auto-summary
+
+
+================================================
+- OSPF 설정
+router ospf  process-id
+network 네트워크주소  와일드카드마스크  area  ID
+network 인터페이스주소 0.0.0.0  area ID
+
+* 와일드카드마스크 : 서브넷마스크를 뒤집어 놓은 형태
+                            255.255.255.0 => 0.0.0.255
+                            255.255.0.0 => 0.0.255.255 
+
+* process-id는 OSPF 프로세스를 식별하기 위한 번호로 로컬에서만 구분하면 됨.
+   즉, 다른 OSPF라우터와 동일한 값을 사용해도 됨.
+
+- OSPF 설정(패킷트레이서)
+
+R1)
+conf t
+router ospf 1
+network 172.16.1.0 0.0.0.255 area 0
+network 172.16.2.0 0.0.0.255 area 0
+network 172.16.3.0 0.0.0.255 area 0
+network 1.1.1.0 0.0.0.255 area 0
+
+int loopback 1
+ip ospf network point-to-point
+
+R2)
+conf t
+router ospf 1
+network 192.168.3.0 0.0.0.255 area 0
+network 1.1.1.0 0.0.0.255 area 0
+
+- OSPF 설정(GNS3)
+
+R1)
+conf t
+int lo0
+ip add 1.1.1.1 255.255.255.0
+
+int s1/0
+ip add 2.1.12.1 255.255.255.0
+no sh
+
+int s1/1
+ip add 2.1.13.2 255.255.255.0
+no sh
+
+
+router ospf 1
+network 1.1.1.0 0.0.0.255 area 0
+network 2.1.12.1 0.0.0.0 area 0
+network 2.1.13.0 0.0.0.255 area 0
+
+R2)
+conf t
+int lo0
+ip add 2.2.2.2 255.255.255.0
+no sh
+
+int s1/0
+ip add 2.1.12.2 255.255.255.0
+no sh
+
+router ospf 1
+network 2.2.2.2 0.0.0.0 a 0
+network 2.1.12.2 0.0.0.0 a 0
+
+R3)
+conf t
+int lo0
+ip add 3.3.3.3 255.255.255.0
+
+int s1/1
+ip add 2.2.13.3 255.255.255.0
+no sh
+
+router ospf 1
+network 2.1.13.3 0.0.0.0 a 0
+network 3.3.3.3 0.0.0.0 a 0
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
