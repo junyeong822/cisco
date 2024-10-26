@@ -1,0 +1,111 @@
+R1)
+conf t
+int f0/0
+ip add 172.16.1.254 255.255.255.0
+no sh
+
+int s1/1
+ip add 10.1.12.1 255.255.255.0
+no sh
+
+R2)
+conf t
+int s1/1
+ip add 10.1.12.2 255.255.255.0
+no sh
+
+int s1/2
+ip add 10.1.23.2 255.255.255.0
+no sh
+int s1/0
+ip add 2.2.24.2 255.255.255.0
+no sh
+
+R3)
+conf t
+int s1/2
+ip add 10.1.23.3 255.255.255.0
+no sh
+
+int f0/0
+ip add 192.168.3.254 255.255.255.0
+no sh
+
+ISP)
+conf t
+int s1/0
+ip add 2.2.24.4 255.255.255.0
+no sh
+
+int f0/0
+conf t
+ip add dhcp
+no sh
+
+int f0/1
+ip add 3.3.48.4 255.255.255.0
+no sh
+
+R8)
+conf t
+no ip routing
+ip default-gateway 3.3.48.4
+int f0/0
+ip add 3.3.48.8 255.255.255.0
+no sh
+
+R7)
+conf t
+no ip routing
+ip default-gateway 172.16.1.254
+int f0/0
+ip add 172.16.1.7 255.255.255.0
+no sh
+
+R5)
+conf t
+no ip routing
+ip default-gateway 192.168.3.254
+int f0/0
+ip add 192.168.3.5 255.255.255.0
+no sh
+
+R6)
+conf t
+no ip routing
+ip default-gateway 192.168.3.254
+int f0/0
+ip add 192.168.3.6 255.255.255.0
+no sh
+
+
+do sh ip int br
+
+- 라우팅 설정(Static)
+R1)
+ip route 192.168.3.0 255.255.255.0 s1/1 10.1.12.2
+
+R2)
+ip route 172.16.1.0 255.255.255.0 s1/1 10.1.12.1
+ip route 192.168.3.0 255.255.255.0 s1/2 10.1.23.3
+
+R3)
+ip route 172.16.1.0 255.255.255.0 s1/2 10.1.23.2
+
+ISP)
+ip route 172.16.1.0 255.255.255.0 s1/0 2.2.24.2
+ip route 192.168.3.0 255.255.255.0 s1/0 2.2.24.2
+
+
+- Default Route 설정
+
+R1)
+ip route 0.0.0.0 0.0.0.0 s1/1 10.1.12.2
+
+R2)
+ip route 0.0.0.0 0.0.0.0 s1/0 2.2.24.4
+
+R3)
+ip route 0.0.0.0 0.0.0.0 s1/2 10.1.23.2
+
+
