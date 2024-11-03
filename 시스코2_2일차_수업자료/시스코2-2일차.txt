@@ -1,0 +1,242 @@
+1. NAT : 주소변환(사설->공인,  사설->사설, 공인->공인)
+
+- 외부에서 사설네트워크 내부 시스템에 접속하기 위해서는 Static NAT(보안취약)나 Port Forwarding을 설정해야함
+
+- 사설네트워크 내부의 호스트들이 인터넷 통신이 필요할 때는 Dynamic NAT나 PAT(Port Address Translation) 설정을 해야함.
+
+  >> PAT를 사용해야하는 이유는 Dynamic NAT의 경우에는
+       동시 접속이 global-ip의 수로 제한됨.
+
+
+- R2에 사설주소가 출발지인 경우 공중망으로 나가는 트래픽을 차단하는 ACL을 작성하고 적용(int s1/0).
+
+ip access-list standard private-deny
+deny 10.0.0.0 0.255.255.255
+deny 172.16.0.0 0.15.255.255
+deny 192.168.0.0 0.0.255.255
+permit any
+
+int s1/0
+ip access-group private-deny out
+
+
+- 외부(윈도우)에서 다음 서비스 이용 가능
+1) A네트워크의 R7에 웹 접속
+   R7)
+   conf t
+   ip http server
+   enable password cisco
+
+2) B네트워크의 R5에 텔넷 접속
+    R5)
+    conf t
+    enable password cisco
+    line vty 0 4
+    password cisco
+    login
+
+3) B네트워크의 R6에 SSH 접속 
+    R6)
+    conf t
+    enable password cisco
+    ip domain-name koreait.com
+    crypto key generate rsa general-keys modulus 1024
+    username admin password cisco
+    line vty 0 4
+    login local
+      
+4) NAT - Portforwarding
+
+ip nat inside source static tcp 172.16.1.7 80 2.2.24.2 80
+ip nat inside source static tcp 192.168.3.5 23 2.2.24.2 23 
+ip nat inside source static tcp 192.168.3.6 22 2.2.24.2 22
+
+- ISP에서 NAT설정을 통해 실제 외부 네트워크와 통신 가능하도록 설정
+
+ISP)
+ip access-list standard isp-nat-acl
+permit host 2.2.24.9
+permit host 2.2.24.10
+
+ip nat inside source list isp-nat-acl int f0/0
+
+int f0/0
+ip nat outside
+int s1/0
+ip nat inside
+
+===============================================================
+Confidentiality
+Integrity
+Availibility
+
+이중화(Redundancy, Fault Tolerance) - 가용성(Availibility) - 고가용성(High Availibility)  
+                                                                             11/9, 99.999999999% 
+; 이중화는 네트워크를 통한 서비스가 중단되지 않고 지속될 수 있도록 하는 것.
+
+- OSI 7계층에서 각 계층마다 이중화를 제공하는 기술이 필요함.
+
+  L7  -  애플리케이션 스위치 : 데이터(파일종류- 텍스트, 영상, 음악 등)별로 로드밸런싱
+  L4  -  로드밸런서(L4 스위치) :  동일한 서버(HTTP,HTTPS)를 2대 이상 구성하고 연결 
+  L3  -  게이트웨이 이중화(L3장치 이중화)
+  L2  -  링크이중화(Etherchannel), 스위치이중화
+  L1  -  이중파워, UPS 등
+
+=============================================================
+- 게이트웨이 이중화(L3장치 이중화)
+
+LAN상의 단말들이 LAN외부와 통신하기 위해서는 게이트웨이 장치(L3장치)가 필요함.
+단말에는 기본게이트웨이가 설정되어 있음.  만약 기본게이트웨이로 사용되는 장치에 장애가 발생하면
+단말은 외부와 통신할 수 없게 됨.
+따라서 게이트웨이를 이중화하여 장애발생시에도 외부와 통신이 가능하도록 함.
+
+R1)
+conf t
+host R1
+int g0/0
+ip add 192.168.0.254 255.255.255.0
+no sh
+
+int s0/0/0
+ip add 2.2.12.1 255.255.255.0
+no sh
+
+ip route 0.0.0.0 0.0.0.0 s0/0/0
+
+R2)
+conf t
+host R2
+int g0/0
+ip add 100.100.100.254 255.255.255.0
+no sh
+int s0/0/0
+ip add 2.2.12.2 255.255.255.0
+no sh
+
+int s0/0/1
+ip add 2.2.23.2 255.255.255.0
+no sh
+
+ip route 192.168.0.0 255.255.255.0 s0/0/0
+ip route 192.168.0.0 255.255.255.0 s0/0/1
+
+R3)
+conf t
+host R3
+int g0/0
+ip add 192.168.0.253 255.255.255.0
+no sh
+
+int s0/0/0
+ip add 2.2.23.3 255.255.255.0
+no sh
+
+ip route 0.0.0.0 0.0.0.0 s0/0/0
+
+---------------------------------------------------------------------------------------------------
+> FHRP(First Hop Redundancy Protocol) - 게이트웨이 이중화 프로토콜
+
+1. HSRP(Hot Standby Routing Protocol) - 시스코 전용
+
+2. VRRP(Virtual Router Redundancy Protocol) - 표준. HSRP와 거의 동일
+
+3. GLBP(Gateway LoadBalancing Protocol) - 시스코 전용. HSRP,VRRP와 다르게 동작
+
+- HSRP 설정 : LAN에서 게이트웨이주소로 사용할 수 있는 IP주소가 부여된 인터페이스에서 설정
+
+  R1)
+  int g0/1
+  standby 1 ip 172.16.1.252   => Virtual Router 가 사용하는 IP주소. 단말이 사용할 게이트웨이 주소
+  standby 1 priority 105          => HSRP동작시 사용할 우선순위. 높은 라우터가 Active  상태가 됨. 기본값 100
+  standby 1 preempt              => HSRP동작시 우선순위를 비교하여 높은 라우터로 Active를 가져오는 설정
+  standby 1 track g0/0 10      => 인터페이스 g0/0을 트래킹하고 만약 인터페이스가 다운되면 우선순위를 10만큼 낮추는 설정
+
+  R2)
+  int g0/1
+  standby 1 ip 172.16.1.252
+  standby 1 priority 100
+  standby 1 preempt            => track 기능에 의해 현재 Active 장비의 우선순위가 낮아지면 우선순위 비교를 통해 R2가
+                                             Active 장비가 되도록 하는 설정.  VRRP와 HSRP Version 2는 기본적으로 활성화되어 있음.
+
+
+- MHSRP(Multiple HSRP) - 하나의 인터페이스에 HSRP 설정을 2개 이상 하는 것.
+                                     설정을 통해 모든 L3장비가 게이트웨이 역할을 수행하도록 하는 것.
+
+
+R2)
+int g0/1
+standby 20 ip 172.16.1.251
+standby 20 priority 105
+standby 20 preempt
+standby 20 track g0/0 
+
+R1)
+int g0/1
+standby 20 ip 172.16.1.251
+standby 20 priority 100
+standby 20 preempt 
+
+
+- VRRP는 HSRP를 시스코가 아닌  모든 벤더 장비에서 동작하도록 만든 표준 프로토콜
+
+                        HSRP                                  VRRP           
+                    Active / Standby                  Master / Backup
+                   v1 :224.0.0.2  UDP 1985번       224.0.0.18 protocol번호 112번  
+                   v2 :224.0.0.102 UDP 1985번
+                    사용하지 않는 IP주소로        인터페이스 주소로 VIP 사용가능   
+                    VIP 사용해야함.
+                     Preempt 기능 비활성           Preempt 기능 활성
+                    인터페이스 Track 기능          오브젝트 Track 기능
+                    오브젝트 Track 기능 
+   
+- L3 Etherchannel 인터페이스(int port-channel 1)에는 게이트웨이 이중화 설정을 할 수 없음.
+
+- GNS3 VRRP lab 설정
+
+ESW1)
+
+int vlan 10
+vrrp 10 ip 192.168.10.254
+vrrp 10 priority 110
+
+int vlan 20
+vrrp 20 ip 192.168.20.254
+
+int vlan 30
+standby 30 ip 192.168.30.254
+standby 30 priority 120
+standby 30 preempt
+
+ESW2)
+
+int vlan 10
+vrrp 10 ip 192.168.10.254
+
+int vlan 20
+vrrp 20 ip 192.168.20.254
+vrrp 20 priority 110
+
+int vlan 30
+standby 30 ip 192.168.30.254
+standby 30 preempt
+
+
+
+
+
+
+
+
+
+
+
+
+==============================================================
+
+
+
+
+
+
+
+ 
