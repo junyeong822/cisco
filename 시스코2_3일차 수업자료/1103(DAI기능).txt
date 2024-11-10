@@ -1,0 +1,37 @@
+<DAI(Dynamic Arp Inspection)>
+DHCP Snooping기능이 활성화된 상태에서 ARP Spoofing 공격을 방어하는 보안 기능.
+arp 트래픽을 검사해서 snooping binding table의 정보와 일치하는 경우만 포트에서 허용하고
+일치하지 않으면 허용하지 않고, 위반메시지를 출력한다. 
+
+<DAI 설정>
+
+1. DHCP Snooping 활성화
+  SW1)
+   ip dhcp snooping
+   ip dhcp snooping vlan 1
+   no ip dhcp snooping information option
+
+   int range f0/1 , f0/24  => DHCP 서버가 있는 쪽 포트
+   ip dhcp snooping trust
+
+2. DAI 활성화
+   ip arp inspection vlan 1
+
+3. 인터페이스 trust 설정
+   int range f0/1 , f0/24
+   ip arp inspection trust    => trust가 설정된 포트에서는 arp트래픽을 검사하지 않음.
+
+- DAI 설정 후, 고정 IP가 필요한 시스템이 있는 경우 해당 시스템은
+  DAI적용에서 제외를 해야한다. 이 경우 ARP ACL이 사용된다.
+
+  arp access-list SW1
+  permit ip host 192.168.1.30 mac host 0000.0000.0001
+
+  ip arp inspection filter SW1 vlan 1
+
+
+
+
+
+
+ 

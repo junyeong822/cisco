@@ -1,0 +1,98 @@
+R1)
+
+int tun 1
+ip add 172.16.14.1 255.255.255.0
+tunnel source 3.3.12.1
+tunnel destination 3.3.24.4
+
+
+router eigrp 100
+net 10.1.1.0 0.0.0.255
+net 172.16.14.0 0.0.0.255
+no auto-summary
+
+R2)
+int s1/2
+ip add 3.3.24.2 255.255.255.0
+no sh
+
+
+R4)
+int s1/2
+ip add 3.3.24.4 255.255.255.0
+no sh
+
+int f0/0
+ip add 10.1.4.254 255.255.255.0
+no sh
+
+ip route 0.0.0.0 0.0.0.0 s1/2 3.3.24.2
+
+int tun 4
+ip add 172.16.14.4 255.255.255.0
+tunnel source 3.3.24.4
+tunnel destination 3.3.12.1
+
+
+router eigrp 100
+net 10.1.4.0 0.0.0.255
+net 172.16.14.0 0.0.0.255
+no auto-summary
+
+- GRE IPSec => 터널 자체 보호
+R1)
+crypto isakmp policy 20
+encr 3des
+hash sha
+authen pre-share
+group 2
+
+crypto isakmp key cisco address 3.3.24.4
+
+crypto ipsec transform-set r1r4-ts esp-aes esp-sha-hmac
+
+crypto ipsec profile IPSEC_GRE
+set transform-set r1r4-ts
+
+int tun 1
+tunnel protection ipsec profile IPSEC_GRE
+
+R4)
+crypto isakmp policy 10
+encr 3des
+hash sha
+authen pre-share
+group 2
+
+crypto isakmp key cisco address 3.3.12.1
+
+crypto ipsec transform-set r4r1-ts esp-aes esp-sha-hmac
+
+crypto ipsec profile IPSEC_GRE
+set transform-set r4r1-ts
+
+int tun 4
+tunnel protection ipsec profile IPSEC_GRE
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

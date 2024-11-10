@@ -1,0 +1,73 @@
+>> 스위치 보안 
+
+1. 스위치 포트보안 : 
+
+  1) Access 계층 스위치의 단말이 연결되는 포트에 설정하는 보안. 가장 기본적인 Endpoint 보안
+     MAC주소를 이용해서 허가된 단말만 포트를 사용할 수 있도록 설정.
+    포트를 사용할 수 있는 MAC주소 개수를 지정.
+    위반시 동작으로는 shutdown, protect, restrict
+
+    SW)
+    show port-security interface f0/1  => f0/10의 포트보안 상태 확인
+    conf t
+    int f0/10
+    switchport mode access     => trunk 모드일 경우에는 포트보안 설정을 하지 않음.
+    switchport port-security     => 포트보안 활성화
+    switchport port-security mac-address [H.H.H|sticky]    => mac주소 H.H.H 만 허용
+                                                                            => sticky는 학습된 mac주소를 running-config에 저장. 
+    switchport port-security maximum 개수    =>  허용할 mac주소 개수.  기본값은 1.
+    switchport port-security violation [shutdown|protect|restrict]  => 위반시 동작.  기본은 shutdown.
+
+    * 보안 위반에 의해서 shutdown되면 err-disabled 상태가 되고 이 경우 위반사항을 제거하고
+      shutdown 후에 no shutdown으로 활성화 할 수 있음.
+
+                    
+  2) 802.1X 인증 - RADIUS서버(AAA서버)를 이용해서 인증된 사용자만 스위치 포트를 사용할 수 있도록 하는 기능
+
+2. STP보안  
+    BPDU Guard  - access포트에 bpdu가 수신되면 포트를 비활성화하는 기능.
+    BPDU Filter - access포트로 bpdu가 전송되는 것을 차단하는 기능.
+    Root Guard  - 스위치 네트워크에서 Root Bridge가 변경되는 것을 방지하는 기능.
+
+    Loop Guard  - 현재 BLK상태인 포트가 비정상적인 상황에서 FWD으로 변경돼서 루프가
+                        발생되는 상황을 방지하는 기능.
+    UDLD(UniDirectional Link Detection) 
+                      - 광케이블의 물리적인 손상을 체크해서 루프가 발생하지 않게 하는 기능
+                      - UDLD aggressive는 UTP에 설정해서 체크.
+              
+
+1) BPDU Guard  : 전역설정과 인터페이스에서 설정 가능
+                 전역설정에서는 portfast가 설정된 포트에 전부 BPDU GUARD 설정
+                 (spanning-tree portfast bpduguard default)
+
+                 인터페이스 설정( spanning-tree bpduguard enable)
+
+
+2) Root Guard : 인터페이스에서 설정
+                spanning-tree guard root
+
+
+3) BPDU Filter : 인터페이스에서 설정
+                 spanning-tree bpdufilter enable
+ 
+                 bpdufilter가 설정된 포트에 bpdu가 수신되면 bpdufilter가 해제됨.
+
+4) Loop Guard  : 인터페이스에서 설정
+                 spanning-tree guard loop 
+
+                 전역설정모드에서 설정
+                 spanning-tree guard loop default
+
+5) UDLD :  인터페이스에서 설정
+                 udld port             => 광케이블
+
+                 udld port aggressive  => UTP 케이블
+
+
+
+> BPDU Guard에 의해서 비활성화된 포트는  err-disabled 상태에 놓임.
+   err-disabled 상태의 포트는 no shutdown으로 활성화 되지 않음.
+   bpdu가 수신되지 않도록 하고, shutdown -> no shutdown 명령을 수행함. 
+   포트보안 shutdown도 마찬가지로 활성화 시킬 수 있다.
+
+
