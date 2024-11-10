@@ -1,0 +1,41 @@
+- IPv6 주소 자동할당
+
+1) SLAAC(Stateless Address Auto Configuration)
+
+   라우터 인터페이스 Prefix + EUI-64 => 인터페이스에 할당.  
+   IP주소와 GW주소이외에 설정사항 없음. 인터넷이 안됨.(DNS가 없기 때문에)
+
+
+2) Stateful DHCPv6 : DHCP와 같음.
+   할당할 Prefix 설정가능.
+   DNS, domain-name 등을 호스트에 할당하고 할당 내용 보존.
+  
+   ipv6 dhcp pool state_pool
+   address prefix 2001:5::/64
+   dns-server 2001:7::7
+   domain-name koreait.com
+
+   int g0/0
+   ipv6 address 2001:5::5/64
+   ipv6 dhcp server state_pool
+   ipv6 nd managed-config-flag
+   ipv6 nd prefix 2001:5::/64 14400 14400 no-autoconfig
+   no sh
+
+   ipv6 unicast-routing
+
+3) Stateless DHCPv6
+   Stateful과 같이 인터넷이 가능하도록 할당하지만 할당내용 보존하지 않음.
+
+   ipv6 dhcp pool stateless_pool
+   dns-server 2001:7::7
+   domain-name koreait.com    
+ 
+   int g0/0
+   ipv6 address 2001:5::5/64
+   ipv6 dhcp server stateless_pool
+   ipv6 nd other-config-flag
+
+   Client)
+   int g0/0
+   ipv6 address autoconfig

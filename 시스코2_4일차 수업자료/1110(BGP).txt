@@ -1,0 +1,158 @@
+- 한 조직내에서는 IGP를 통해 네트워크 전체를 관리하지만, 서로 다른 수많은 조직들이 별개로 관리하는 네트워크 환경에서는 EGP가 필요한데 이 EGP에 해당하는 프로토콜이 BGPv4이다. 
+  따라서 직접 제어할 수 없는 다른 네트워크를 어느 정도까지 조정할 수 있는 방법들이 필요하다.
+
+- IGP는 네트워크의 성능을 최적화시키는 것이 주 목적이지만, BGP는 기술적인 사항과는 연관없이 비용 등의 요소를 고려하여, 
+  조직간의 합의에 의한, 정책적인 결정에 따라 라우팅되도록 하는 것이 주 목적이다.
+
+- BGP는 TCP 179번을 사용하여 동작한다. 따라서 인접한 라우터 뿐만 아니라 통신이 확보되는 원격 라우터와도 Neighbor가 될 수 있다.
+
+- BGP는 AS번호를 사용한다. AS는 한 조직에서 관리하는 라우터 모음이고, 이 AS를 식별하기 위해 AS번호를 사용한다. IP주소와 마찬가지로 IANA에서 각 국가에 부여한다. 
+  사용가능한 번호는 1-65535이고, 이 중 64512-65535는 사설 AS번호이다. AS번호가 부족해짐에 따라서 32비트로 확장함.
+
+- BGP는 eBGP와 iBGP로 나눌 수 있는데 eBGP는 다른 AS와의 BGP 연결이고, iBGP는 동일 AS내에서의 BGP연결이다. 
+  iBGP는 eBGP로 수신한 정보를 다른 AS로 전달하기 위한 용도로 사용한다.
+
+
+- BGP는 loop-free 라우팅 프로토콜이다. 즉, 라우팅 루프가 발생하지 않는다.
+  
+  Path Vector 라우팅 프로토콜(DV 라우팅 프로토콜과 비슷하게 목적지까지 적은 AS를 경유하는 경로를 최적 경로로 선택함)임에도 루프가 없다.
+
+  라우팅 루프를 방지하기 위해 AS-PATH라고하는 속성(Attribute)을 사용한다. 네트워크정보를 다른 AS로 
+  
+  전달할때 자신의 AS번호를 추가해서 전달하고, 수신한 네트워크정보에 자신의 AS번호가 있으면
+
+  해당 정보를 폐기한다. eBGP의 경우에는 AS-PATH를 이용해서 루프를 방지할 수 있다.
+
+  iBGP의 경우에는 동일한 AS번호를 사용하기 때문에 AS-PATH를 이용해서 루프를 방지할 수 없다.
+  
+  따라서 iBGP의 경우는 BGP Split-horizon 규칙을 이용해서 루프를 방지한다.
+
+- BGP Split-horizon 규칙이란 iBGP에 의해 전달받은 정보를 다시 iBGP로 전달하지 않는 규칙이다.
+ 
+  이 규칙에 의해 라우팅 정보가 단절되는 문제를 해결하기 위한 방법으로는 
+
+- 두 개 이상의 AS를 연결하는 경우(Transit AS; ISP(Internet Service Provider))에 BGP Split-horizon 규칙 영향없이 BGP정보를 전달하기 위해 사용할 수 있는 
+  방법들(Full mesh, Confederation, Route Reflector) 중에 현재는 Route Reflector가 사용된다.
+
+  1)Full Mesh : 모든 라우터와 BGP Peer(Neighbor)를 맺는다. 
+
+  2)Confederation : 사설 AS를 이용한다.iBGP로 전송받은 정보를 iBGP로 전송하지 않는 환경 구성. 
+
+  3)Route Reflector : Route Reflector Client로 설정된 BGP라우터로부터 정보를 모아서 분배해주는
+                      역할을 한다. 따라서 BGP Split-horizon규칙에 적용받지 않는다.
+                      Route Reflector 역할의 라우터에서 Route Reflector Client를 지정한다.
+
+                      router bgp AS번호
+                      neighbor x.x.x.x route-reflector-client
+          
+
+
+- 네트워크를 광고하는 방법
+  1) network 명령 이용(i)
+  2) 재분배(?)
+
+
+- Next-hop 문제 해결
+
+  BGP는 AS를 하나의 가상라우터로 취급하기 때문에 라우팅 정보를 다른 AS로 전달할 때(eBGP)만 Nexthop을 변경한다. 따라서 동일 AS내에서 BGP Peer(네이버)에게 
+  라우팅 정보 전송시(IBGP)에는 Nexthop이 변경되지 않는다. 따라서 AS내부에 있는 라우터에서 Nexthop에 대한 정보가 없을 경우 해당 라우팅 정보를 이용할 수 없게된다. 
+  Static Route 를 이용해서 해당 Nexthop 네트워크를 설정하거나, next-hop-self 명령을 이용해서 Nexthop을 변경하면 된다. 하지만 여러가지 이유로 next-hop-self가 사용됨.
+
+- BGP는 bgp 테이블에 있는 최적경로정보(사용가능한)만 Peer에게 전송한다.
+
+- BGP 기본설정
+
+router bgp AS번호
+
+네이버 설정
+neighbor x.x.x.x remote-as AS번호   => BGP는 neighbor 명령으로 직접 neighbor를 설정해야함.
+                                       이때 remote-as AS번호가  router bgp AS번호와 다르면
+                                       eBGP연결이고, 같으면 iBGP 연결임.
+네트워크 광고
+network 네트워크주소 mask 서브넷마스크 => network 명령으로 광고하려는 네트워크정보는 반드시 
+                                         라우팅테이블에 있어야함(네트워크정보가 동일해야함.). 그리고 클래스풀 네트워크일 경우
+                                         mask 설정 생략 가능.
+                                         자신의 네트워크(Connected)가 아니더라도 광고할 수 있음.
+                             
+redistribute                          => 재분배를 통해서 광고.
+
+next-hop 해결 
+neighbor x.x.x.x next-hop-self        => eBGP와 iBGP가 같이 사용되는 라우터에서 
+                                         iBGP 네이버에 대해 설정
+
+
+- BGP 블랙홀 현상 : AS내에 BGP가 동작하지 않는 라우터가 존재할 경우 해당 라우터에서 패킷이 
+                    폐기되는 현상
+
+
+- 블랙홀 현상을 해결하는 방법
+
+  1) synchronization : iBGP로 수신한 정보를 IGP가 확인해주어야 eBGP로 전송할 수 있는 규칙 
+                       synchronization이 활성화된 경우 iBGP수신한 정보를 IGP로도 학습했을 경우
+                       eBGP로 전송함. 블랙홀 현상은 방지할 수 있지만 통신이 안되는 점은 해결해야함.
+                       따라서, 현재는 synchronization을 비활성화하고 다른 방법을 이용해서 
+                       블랙홀현상을 방지함.
+
+  2) AS내부의 모든 라우터에 BGP 설정 => BGP Split-horizon 규칙에 의해서 BGP정보가 완전히 
+                                       전달되지 않을 수 있음.
+
+
+- iBGP 연결시 루프백 주소를 neighbor 주소로 설정하는 이유는 상대장비로 가는 경로가 2개 이상일 
+  경우에도 물리인터페이스 주소로 neighbor 설정을 했을 때 장애가 발생하면 BGP 네이버 연결이 끊긴다. 
+  하지만 루프백 주소로 neighbor를 설정했을 때는 네이버가 유지된다.
+
+  router bgp AS번호
+  neighbor x.x.x.x remote-as AS번호
+  neighbor x.x.x.x update-source lo0   => 출발지 주소를 loopback0로 설정하는 명령
+
+- TTL(Time To Live) : 패킷이 목적지를 찾기 위해 건너갈 수 있는 라우터 수. TTL이 1이면 라우터를 못건너감.
+                      최대 TTL은 255. OS마다 기본값이 다름. 윈도우(128), 리눅스(64), 시스코IOS(255) 등.
+
+- iBGP가 사용하는 기본 TTL 은 255이고, eBGP는 1을 사용한다.
+  eBGP 설정시 직접 연결된 인터페이스 IP주소가 아니고 원격의 주소를 이용해서 Neighbor를 설정하는 경우
+  ebgp-multihop 홉수 를 이용해서 추가적인 설정을 해야함.
+
+- eBGP에서도 루프백을 이용해서 Neighbor를 설정하는 이유는 장애대비이다.
+
+
+- 다음은 BGP의 속성(Attribute)에 해당함.
+
+Origin Code : Path 부분의 i - network 명령에 의해 BGP에 포함된 정보 
+                          ? - 재분배에 의해 BGP에 포함된 정보
+                          e - EGP라는 프로토콜에 의해 광고된 정보
+Next Hop : 해당 네트워크로 라우팅하기 위해 거쳐가야하는 경로상의 장비 IP주소
+           이 Next Hop에 대한 정보가 라우팅 테이블에 존재하지 않으면 
+           해당 BGP정보는 valid하지 않음.(사용할 수 없음)
+
+Metric : IGP의 metric과 비슷한 역할. 낮은 메트릭 값을 가지는 정보가 우선시 됨.
+         자신의 AS로 들어오는 트래픽을 조정할 때 사용됨. 
+
+Local Preference : AS에서 외부 네트워크로 트래픽을 보낼 때 출구가 2개 이상인 경우 높은 Local Preference값을
+                   가지는 경로가 사용됨.
+
+Weight : 시스코장비에서만 사용되는 값으로 Local Preference와 같은 용도이지만 한 개 라우터에서 경로가 2개 이상일 때
+         Weight 값이 높은 경로가 사용됨.
+
+Path : AS-PATH를 의미하고 해당 경로가 어느 AS에서 BGP에 포함돼서 어떤 AS를 거쳐서 수신되었는지를 나타내는 정보
+       이 AS-PATH에 의해 BGP는 Loop Free 라우팅 프로토콜에 해당됨. 
+
+
+- 속성(Attribute)이 비교되는 우선순위
+
+1. Weight : 시스코에만 해당. 높은 값
+2. Local Preference : 높은 값
+3. AS-PATH : 짧은 Path
+4. Origin : i > e > ?
+5. MED(metric) : 낮은 값
+6. EBGP > IBGP
+...
+7. Peer IP Address : 낮은 주소
+
+
+
+
+show ip bgp summary  => neighbor 확인.   state/pfxRcd 부분에 숫자가 표시돼야 정상. active/idle 등이 정상적인 neighbor 설정이 안된 것임.
+                                                             
+
+
+ping 44.44.44.44 so 11.11.11.11

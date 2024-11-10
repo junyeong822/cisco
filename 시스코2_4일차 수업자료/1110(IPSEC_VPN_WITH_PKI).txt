@@ -1,0 +1,194 @@
+- PKI(Public Key Infrastructure) 
+디지털 인증서 사용을 위한 기반구조로써 디지털 인증서의 생성, 관리, 배포, 사용, 저장 및 해제를 위하여 
+필요한 하드웨어,소프트웨어, 정책 및 절차를 총칭하는 용어이다.
+
+즉, 송수신 데이터 암호화를 위한 세션키를 교환 공개키를 이용하여 하고 디지털 인증서를 통해 
+사용자를 인증하는 시스템으로, 공개키 암호 알고리즘을 안전하게 사용하기 위해 필요한 서비스를 제공하는 기반 구조이다.
+
+
+
+- 디지털 인증서
+인증기관(CA, certificate authority)이 소유자의 신분과 그의 공개키 정보를 보증하기 위해 발급하는 전자문서이다.
+CA는 사용자의 공개키 인증서를 전자서명함으로써, 사용자 인증서가 진짜라는 것과 내용이 변조되지 않았다는 것을 보증한다.
+
+
+
+1.NTP 설정
+
+CA_NTP>
+
+CA_NTP# clock set 14:10:00 july 18 2018
+CA_NTP# conf t
+CA_NTP(config)# ntp master
+
+
+R2와 R6에서
+
+ntp server 2.2.37.7
+
+시간 동기화 확인
+
+sh ntp status
+
+
+
+2. 디지털 인증서 서버 설정
+
+CA를 디지털 인증서 서버로 동작
+
+ip http server
+
+crypto pki server CA1
+issuer-name CN=CertServer, L=Seoul, C=KR
+grant auto
+no sh
+
+RSA 개인키를 보호할 패스워드를 요구하며 7자리 이상의 패스워드 지정
+
+
+참고) X.500 포맷
+
+C=country
+CN=common name :CA 이름
+E=email
+L=locality CA의 위치
+O=organization :회사명
+OU=organizational unit : CA내의 부서명
+ST=state  : CA의 시도 또는 주 정보
+
+
+- 인증서 서버 확인
+ 
+  show crypto pki server
+
+- CA 상태 확인
+  
+  show crypto pki trustpoints status
+
+- 인증서 정보 확인
+
+  show crypto pki certificates
+
+
+
+3. 공개키/개인키 생성
+
+- RSA 키 생성
+
+  도메인 이름 지정 후, 키 생성
+
+  ip domain-name koreait.com
+  crypto key generate rsa general-keys modulus 1024
+
+- 공개키 확인
+  
+  show crypto key mypubkey rsa
+
+  wr 로 저장
+
+
+4. CA 인증서 다운로드 및 인증
+
+  CA와 사용자 사이에 인증서를 등록하고 CRL(certificate revocation list)를 요청할 때 
+  SCEP(simple certificate enrollment protocol)을 사용. 
+  SCEP는 인증서 등록시에는 http를 사용하고, CRL확인시에는 http나 ldap을 이용.
+
+
+R1>
+- CA 지정 
+  
+  crypto pki trustpoint CA
+  enrollment url http://3.3.3.100
+  subject-name cn=R5, l=Daegu, c=KR
+  exit
+
+- CA 인증서 다운 및 인증
+
+  crypto pki authenticate CA
+
+- 라우터 인증서 요청
+
+  crypto pki enroll CA
+
+<인증서 발급 과정>
+1.R1에  CA정보 등록 
+2.CA정보를 이용해 CA의 인증서 요청후 수신(CA의 공개키를 가지고 있음)
+3.R1이 자신의 개인키/공개키를 생성하고 공개키를 CA에게 전송. 이때 CA의 공개키로 암호화해서 전송.
+4.CA는 R1이 보낸 R1의 공개키를 확인하기 위해 자신의 개인키로 복호화함.
+5.CA는 R1의 공개키를 보증하는 인증서를 생성하고 R1에게 인증서를 전송함. 이때 자신의 개인키로 암호화해서 전송(R1은 CA의 공개키로 복호화가능)
+6.R1은 수신된 인증서를 저장.
+  
+  요청 후 승인되면 인증서가 만들어지고 자동으로 라우터로 다운로드 된다.
+
+- 인증서 정보 확인
+  
+  show crypto pki certificates verbose
+
+동일한 방법으로 R2도 등록을 한다.
+
+crypto pki trustpoint CA1
+enrollment url http://1.1.34.3
+subject-name cn=R2, l=Busan, c=KR
+exit
+
+
+5. 각 라우터에 인증서가 등록이 되면, 인증서를 이용하여 VPN 피어 인증이 가능하다.
+   
+   IPSec VTI를 이용한 터널 구성 => 즉, 터널 자체를 IPSec으로 보호함.
+
+-R2
+
+  crypto isakmp policy 10
+  authentication rsa-sig         => 디지털 인증서를 사용하여 상대방 인증.
+  encryption aes
+  exit
+
+  crypto ipsec transform-set ts esp-aes esp-sha-hmac
+  exit
+
+  crypto ipsec profile vti-profile     => 터널 인터페이스에 적용할 프로파일 생성.
+  set transform-set ts
+  exit
+
+  int tunnel 26
+  ip add 10.1.26.2 255.255.255.0
+  tunnel source 1.1.24.2
+  tunnel destination 1.1.56.6
+  tunnel mode ipsec ipv4
+  tunnel protection ipsec profile vti-profile         => 터널에 프로파일 적용.
+  exit
+
+
+-R6
+
+  crypto isakmp policy 10
+  authentication rsa-sig
+  encryption aes
+  exit
+
+  crypto ipsec transform-set ts esp-aes esp-sha-hmac
+  exit
+
+  crypto ipsec profile vti-profile
+  set transform-set ts
+  exit
+
+  int tunnel 26
+  ip add 10.1.26.6 255.255.255.0
+  tunnel source 1.1.56.6
+  tunnel destination 1.1.24.2
+  tunnel mode ipsec ipv4
+  tunnel protection ipsec profile vti-profile
+  exit
+
+
+설정확인
+
+sh crypto isakmp policy
+
+sh crypto isakmp sa
+
+sh crypto key pubkey-chain rsa  => 모든 공개키 확인.
+ 
+   
+
